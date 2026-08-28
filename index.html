@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Androiyd Voice Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="gate" class="gate">
+    <div class="gate-card">
+      <p class="kicker">Androiyd Voice Lab</p>
+      <h1>A quieter coach.<br />A sharper ear.</h1>
+      <p class="lede">Live pitch, hold-or-adjust coaching, and on-device autotune. Nothing leaves this phone or laptop.</p>
+      <button id="start-btn" class="primary">Start microphone</button>
+      <button id="explore-btn" class="ghost">Look around first</button>
+      <p id="gate-error" class="error hidden"></p>
+    </div>
+  </div>
+  <main class="app">
+    <header class="top">
+      <div>
+        <p class="kicker">Androiyd Voice Lab</p>
+        <h2 id="mode-title">Coach</h2>
+      </div>
+      <nav class="tabs" aria-label="Modules">
+        <button class="tab is-on" data-tab="coach">Coach</button>
+        <button class="tab" data-tab="tune">Tune</button>
+        <button class="tab" data-tab="session">Session</button>
+      </nav>
+    </header>
+    <section id="panel-coach" class="panel is-on">
+      <div class="hero-card">
+        <div id="action-chip" class="chip wait">…</div>
+        <h3 id="coach-title">Make any comfortable sound</h3>
+        <p id="coach-hint">Hum, talk, or sing. I’ll tell you higher, lower, or hold it.</p>
+        <div class="zone-row">
+          <span>Low</span>
+          <div class="meter"><i id="meter-dot"></i></div>
+          <span>High</span>
+        </div>
+        <p class="zone-label" id="zone-label">Waiting</p>
+      </div>
+      <div class="note-card">
+        <div>
+          <p class="kicker">Heard note</p>
+          <div id="note-name" class="note">—</div>
+        </div>
+        <div class="cents-wrap">
+          <div id="cents-bar" class="cents-bar"><i id="cents-needle"></i></div>
+          <p id="cents-label" class="mono">0¢</p>
+        </div>
+      </div>
+    </section>
+    <section id="panel-tune" class="panel">
+      <button id="tune-toggle" class="orb" aria-pressed="false">OFF</button>
+      <p id="tune-status" class="center muted">Ready. Headphones on before you flip it.</p>
+      <div class="keys" id="keys"></div>
+      <div class="row">
+        <button class="pill is-on" data-mode="Major">Major</button>
+        <button class="pill" data-mode="Minor">Minor</button>
+        <button class="pill" data-mode="Chromatic">Chromatic</button>
+      </div>
+      <div class="row" id="styles"></div>
+      <label class="slider">
+        <span>Amount <b id="str-val">75</b></span>
+        <input id="strength" type="range" min="0" max="100" value="75" />
+      </label>
+      <label class="slider">
+        <span>Speed <b id="spd-val">50</b></span>
+        <input id="speed" type="range" min="0" max="100" value="50" />
+      </label>
+    </section>
+    <section id="panel-session" class="panel">
+      <div class="stats">
+        <article><p>Hold time</p><strong id="stat-hold">0s</strong></article>
+        <article><p>Clearest note</p><strong id="stat-note">—</strong></article>
+        <article><p>Avg cents</p><strong id="stat-cents">—</strong></article>
+        <article><p>Live frames</p><strong id="stat-frames">0</strong></article>
+      </div>
+      <p class="muted">Session stats reset when you reload.</p>
+    </section>
+  </main>
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
