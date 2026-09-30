@@ -14,7 +14,7 @@
     <div class="gate-card">
       <p class="kicker">Androiyd Voice Lab</p>
       <h1>A quieter coach.<br />A sharper ear.</h1>
-      <p class="lede">Live pitch, hold-or-adjust coaching, and on-device autotune. Nothing leaves this phone or laptop.</p>
+      <p class="lede">Live pitch, a target lane that shows where you are and where to go, and on-device autotune. Nothing leaves this phone or laptop.</p>
       <button id="start-btn" class="primary">Start microphone</button>
       <button id="explore-btn" class="ghost">Look around first</button>
       <p id="gate-error" class="error hidden"></p>
@@ -36,23 +36,39 @@
       <div class="hero-card">
         <div id="action-chip" class="chip wait">…</div>
         <h3 id="coach-title">Make any comfortable sound</h3>
-        <p id="coach-hint">Hum, talk, or sing. I’ll tell you higher, lower, or hold it.</p>
-        <div class="zone-row">
-          <span>Low</span>
-          <div class="meter"><i id="meter-dot"></i></div>
-          <span>High</span>
-        </div>
-        <p class="zone-label" id="zone-label">Waiting</p>
+        <p id="coach-hint">Hum, talk, or sing. The lane shows you vs the target note.</p>
       </div>
-      <div class="note-card">
-        <div>
-          <p class="kicker">Heard note</p>
-          <div id="note-name" class="note">—</div>
+      <div class="guide">
+        <div class="guide-meta">
+          <div>
+            <p class="kicker">You</p>
+            <div id="note-name" class="note">—</div>
+            <p id="cents-label" class="mono">—</p>
+          </div>
+          <div class="guide-gap">
+            <p class="kicker">To target</p>
+            <div id="gap-label" class="note gap">—</div>
+            <p id="dir-label" class="muted">Waiting</p>
+          </div>
+          <div>
+            <p class="kicker">Aim</p>
+            <div id="target-name" class="note">Auto</div>
+            <p id="target-mode-label" class="muted">Nearest in-scale</p>
+          </div>
         </div>
-        <div class="cents-wrap">
-          <div id="cents-bar" class="cents-bar"><i id="cents-needle"></i></div>
-          <p id="cents-label" class="mono">0¢</p>
+        <div class="lane-wrap">
+          <span class="lane-cap">High</span>
+          <div class="lane" id="lane">
+            <div class="lane-ticks" id="lane-ticks"></div>
+            <div class="lane-target" id="lane-target"></div>
+            <div class="lane-you" id="lane-you"></div>
+          </div>
+          <span class="lane-cap">Low</span>
         </div>
+      </div>
+      <div class="target-row">
+        <button class="pill is-on" id="auto-target">Auto target</button>
+        <div class="keys compact" id="target-keys"></div>
       </div>
     </section>
     <section id="panel-tune" class="panel">
@@ -81,7 +97,7 @@
         <article><p>Avg cents</p><strong id="stat-cents">—</strong></article>
         <article><p>Live frames</p><strong id="stat-frames">0</strong></article>
       </div>
-      <p class="muted">Session stats reset when you reload.</p>
+      <p class="muted">Session stats reset when you reload. Use headphones when Tune is on.</p>
     </section>
   </main>
   <script src="./app.js" type="module"></script>
