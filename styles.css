@@ -106,6 +106,17 @@ body { background:
   font-size: .65rem; letter-spacing: .14em; text-transform: uppercase; color: #fff;
 }
 .target-row { display: grid; gap: .55rem; }
+.song-list { display: grid; gap: .45rem; }
+.song-list button {
+  text-align: left; padding: .85rem 1rem; border-radius: 1rem;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; cursor: pointer;
+}
+.song-list button.is-on { border-color: var(--good); background: rgba(94,234,212,.1); }
+.song-list button small { display: block; color: var(--muted); margin-top: .2rem; }
+.song-now { background: var(--card); border: 1px solid var(--line); border-radius: 1.5rem; padding: 1rem 1.1rem; }
+.song-lyric { font-size: 1.35rem; font-weight: 700; margin: .2rem 0 .8rem; min-height: 1.6em; }
+.song-controls { display: flex; gap: .5rem; }
+.primary.compact, .ghost.compact { width: auto; margin: 0; padding: .7rem 1.1rem; }
 @media (min-width: 720px) {
   .gate-card h1 { font-size: 2.2rem; }
   .note { font-size: 2.4rem; }
