@@ -28,6 +28,7 @@
       </div>
       <nav class="tabs" aria-label="Modules">
         <button class="tab is-on" data-tab="coach">Coach</button>
+        <button class="tab" data-tab="songs">Songs</button>
         <button class="tab" data-tab="tune">Tune</button>
         <button class="tab" data-tab="session">Session</button>
       </nav>
@@ -69,6 +70,19 @@
       <div class="target-row">
         <button class="pill is-on" id="auto-target">Auto target</button>
         <div class="keys compact" id="target-keys"></div>
+      </div>
+    </section>
+    <section id="panel-songs" class="panel">
+      <p class="muted">Pick a melody. The green band becomes the next note the singer hits. Hum or sing along — the white bar is you.</p>
+      <div class="song-list" id="song-list"></div>
+      <div class="song-now">
+        <p class="kicker" id="song-title">No song loaded</p>
+        <p id="song-lyric" class="song-lyric">Choose a song, then press Play.</p>
+        <div class="song-controls">
+          <button class="primary compact" id="song-play">Play</button>
+          <button class="ghost compact" id="song-stop">Stop</button>
+        </div>
+        <p class="muted" id="song-score">Hits 0 · Misses 0</p>
       </div>
     </section>
     <section id="panel-tune" class="panel">
