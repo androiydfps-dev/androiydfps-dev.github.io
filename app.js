@@ -1,6 +1,11 @@
 const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const A4 = 440;
 const A4_MIDI = 69;
+const SCALE_PCS = {
+  Chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  Major: [0, 2, 4, 5, 7, 9, 11],
+  Minor: [0, 2, 3, 5, 7, 8, 10],
+};
 const STYLES = [
   { id: 'natural', name: 'Natural', speed: 0.20, scale: 'Major' },
   { id: 'pop', name: 'Pop', speed: 0.55, scale: 'Major' },
@@ -24,6 +29,10 @@ const state = {
   bestNote: '—',
   bestClarity: 0,
   targetName: '—',
+  autoTarget: true,
+  lockedPc: null,
+  viewLow: 48,
+  viewHigh: 72,
 };
 
 function hzToMidi(hz) { return 12 * Math.log2(hz / A4) + A4_MIDI; }
@@ -31,12 +40,54 @@ function midiToNote(midi) {
   const n = Math.round(midi);
   return `${NOTES[((n % 12) + 12) % 12]}${Math.floor(n / 12) - 1}`;
 }
-function zone(midi) {
-  if (midi < 50) return 'Very low';
-  if (midi < 58) return 'Low';
-  if (midi < 67) return 'Middle';
-  if (midi < 76) return 'High';
-  return 'Very high';
+function scaleSet() {
+  const intervals = SCALE_PCS[state.mode] || SCALE_PCS.Major;
+  return new Set(intervals.map((iv) => (state.rootPc + iv) % 12));
+}
+function snapMidi(midiF) {
+  if (!state.autoTarget && state.lockedPc != null) {
+    const base = Math.round(midiF);
+    let best = base;
+    let bestDist = 99;
+    for (let d = -24; d <= 24; d++) {
+      const cand = base + d;
+      if (((cand % 12) + 12) % 12 === state.lockedPc) {
+        const dist = Math.abs(midiF - cand);
+        if (dist < bestDist) { bestDist = dist; best = cand; }
+      }
+    }
+    return best;
+  }
+  const allowed = scaleSet();
+  const baseMidi = Math.round(midiF);
+  for (let d = 0; d < 12; d++) {
+    const up = baseMidi + d;
+    const dn = baseMidi - d;
+    if (allowed.has(((up % 12) + 12) % 12)) return up;
+    if (d > 0 && allowed.has(((dn % 12) + 12) % 12)) return dn;
+  }
+  return baseMidi;
+}
+function tipFor(cents, abs, inZone) {
+  if (inZone) return {
+    action: 'hold',
+    title: 'Hold it right there',
+    hint: 'You are in the target band. Keep the same breath, jaw, and mouth shape.',
+    dir: 'Centered',
+  };
+  if (abs < 25) {
+    return cents < 0
+      ? { action: 'higher', title: 'Tiny lift', hint: 'Smile a little and think the note up — do not jump.', dir: 'A hair higher' }
+      : { action: 'lower', title: 'Settle a hair', hint: 'Relax the jaw and let the sound drop without going airy.', dir: 'A hair lower' };
+  }
+  if (abs < 80) {
+    return cents < 0
+      ? { action: 'higher', title: 'Slide up toward the band', hint: 'Glide, do not hop. Keep the vowel the same while you rise.', dir: 'Go higher' }
+      : { action: 'lower', title: 'Slide down toward the band', hint: 'Ease the support and let pitch melt down into the green.', dir: 'Go lower' };
+  }
+  return cents < 0
+    ? { action: 'higher', title: 'You are under the note', hint: 'Take a small reset breath, then place the sound higher and hold.', dir: 'Well below' }
+    : { action: 'lower', title: 'You are over the note', hint: 'Back off the squeeze in the throat and place it down into the band.', dir: 'Well above' };
 }
 
 let ctx, source, pitchNode, tuneNode, gate, mic;
@@ -47,11 +98,8 @@ async function loadWorklet(path) {
   const src = await res.text();
   const blob = new Blob([src], { type: 'text/javascript' });
   const url = URL.createObjectURL(blob);
-  try {
-    await ctx.audioWorklet.addModule(url);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  try { await ctx.audioWorklet.addModule(url); }
+  finally { URL.revokeObjectURL(url); }
 }
 
 function pushConfig() {
@@ -64,9 +112,7 @@ function pushConfig() {
     strength: state.strength,
     speed: state.speed,
   });
-  if (gate && ctx) {
-    gate.gain.setTargetAtTime(state.tuneOn ? 1 : 0, ctx.currentTime, 0.04);
-  }
+  if (gate && ctx) gate.gain.setTargetAtTime(state.tuneOn ? 1 : 0, ctx.currentTime, 0.04);
   updateTuneStatus();
 }
 
@@ -74,14 +120,8 @@ function updateTuneStatus() {
   const key = `${NOTES[state.rootPc]} ${state.mode}`;
   const el = $('tune-status');
   if (!el) return;
-  if (!state.running) {
-    el.textContent = 'Start the mic to hear correction.';
-    return;
-  }
-  if (!state.tuneOn) {
-    el.textContent = `Ready on ${key}. Headphones on before you flip it.`;
-    return;
-  }
+  if (!state.running) { el.textContent = 'Start the mic to hear correction.'; return; }
+  if (!state.tuneOn) { el.textContent = `Ready on ${key}. Headphones on before you flip it.`; return; }
   el.textContent = `Correcting toward ${key} · ${Math.round(state.strength * 100)}% · target ${state.targetName}`;
 }
 
@@ -117,50 +157,80 @@ async function startMic() {
   pushConfig();
 }
 
+function midiToPct(midi) {
+  const span = state.viewHigh - state.viewLow;
+  const p = (midi - state.viewLow) / span;
+  return Math.max(4, Math.min(96, (1 - p) * 100));
+}
+
+function paintTicks() {
+  const wrap = $('lane-ticks');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const low = Math.ceil(state.viewLow);
+  const high = Math.floor(state.viewHigh);
+  for (let m = low; m <= high; m++) {
+    if (m % 2 !== 0) continue;
+    const i = document.createElement('i');
+    i.style.top = `${midiToPct(m)}%`;
+    if (m % 12 === 0) {
+      const b = document.createElement('b');
+      b.textContent = midiToNote(m);
+      i.appendChild(b);
+    }
+    wrap.appendChild(i);
+  }
+}
+
 function onPitch(frame) {
   const live = frame.f0 > 0 && frame.clarity > 0.35;
   if (!live) {
-    setCoach('listen', 'I need a clearer sound', 'Try a steady hum like “mmm.”', 0.5, 'Waiting');
+    setCoach('listen', 'I need a clearer sound', 'Try a steady hum like “mmm.”');
     $('note-name').textContent = '—';
     $('cents-label').textContent = '—';
+    $('gap-label').textContent = '—';
+    $('dir-label').textContent = 'Waiting';
     return;
   }
   state.frames += 1;
   const midi = hzToMidi(frame.f0);
-  const nearest = Math.round(midi);
-  const cents = (midi - nearest) * 100;
+  const target = snapMidi(midi);
+  const cents = (midi - target) * 100;
   const abs = Math.abs(cents);
   const note = midiToNote(midi);
-  const meter = Math.max(0, Math.min(1, (midi - 40) / 45));
+  const targetNote = midiToNote(target);
+
+  state.viewLow = target - 6;
+  state.viewHigh = target + 6;
+  paintTicks();
+  $('lane-you').style.top = `${midiToPct(midi)}%`;
+  $('lane-target').style.top = `${midiToPct(target)}%`;
+
   $('note-name').textContent = note;
+  $('target-name').textContent = targetNote;
   $('cents-label').textContent = `${cents >= 0 ? '+' : ''}${cents.toFixed(0)}¢`;
-  $('cents-needle').style.left = `${50 + Math.max(-50, Math.min(50, cents))}%`;
-  $('meter-dot').style.left = `${meter * 100}%`;
-  $('zone-label').textContent = zone(midi);
-  state.centsAbs = state.centsAbs * 0.96 + abs * 0.04;
+  $('gap-label').textContent = `${abs.toFixed(0)}¢`;
+  $('target-mode-label').textContent = state.autoTarget ? 'Nearest in-scale' : 'Locked note';
+
+  const inZone = abs <= 12;
+  const tip = tipFor(cents, abs, inZone);
+  $('dir-label').textContent = tip.dir;
+  if (inZone) state.holdSec += 0.046;
   if (frame.clarity > state.bestClarity) {
     state.bestClarity = frame.clarity;
     state.bestNote = note;
   }
-  if (abs <= 10) {
-    state.holdSec += 0.046;
-    setCoach('hold', 'Hold it right there', 'Centered. Keep the same breath and mouth shape.', meter, zone(midi));
-  } else if (cents < 0) {
-    setCoach('higher', 'Go a little higher', 'Tiny lift, not a big jump. Smile behind the sound.', meter, zone(midi));
-  } else {
-    setCoach('lower', 'Go a little lower', 'Relax your jaw and let the sound settle down.', meter, zone(midi));
-  }
+  state.centsAbs = state.centsAbs * 0.96 + abs * 0.04;
+  setCoach(tip.action, tip.title, tip.hint);
   renderStats();
 }
 
-function setCoach(action, title, hint, meter, zoneName) {
+function setCoach(action, title, hint) {
   const chip = $('action-chip');
   chip.className = `chip ${action === 'listen' ? 'wait' : action}`;
   chip.textContent = action === 'higher' ? 'UP' : action === 'lower' ? 'DOWN' : action === 'hold' ? 'OK' : '…';
   $('coach-title').textContent = title;
   $('coach-hint').textContent = hint;
-  $('meter-dot').style.left = `${meter * 100}%`;
-  $('zone-label').textContent = zoneName;
 }
 
 function renderStats() {
@@ -185,6 +255,23 @@ function buildKeys() {
     b.textContent = n;
     if (i === state.rootPc) b.classList.add('is-on');
     b.onclick = () => { state.rootPc = i; buildKeys(); pushConfig(); };
+    wrap.appendChild(b);
+  });
+}
+
+function buildTargetKeys() {
+  const wrap = $('target-keys');
+  wrap.innerHTML = '';
+  NOTES.forEach((n, i) => {
+    const b = document.createElement('button');
+    b.textContent = n;
+    if (!state.autoTarget && state.lockedPc === i) b.classList.add('is-on');
+    b.onclick = () => {
+      state.autoTarget = false;
+      state.lockedPc = i;
+      $('auto-target').classList.remove('is-on');
+      buildTargetKeys();
+    };
     wrap.appendChild(b);
   });
 }
@@ -230,6 +317,13 @@ document.querySelectorAll('[data-mode]').forEach((b) => {
     pushConfig();
   };
 });
+$('auto-target').onclick = () => {
+  state.autoTarget = true;
+  state.lockedPc = null;
+  $('auto-target').classList.add('is-on');
+  buildTargetKeys();
+  $('target-mode-label').textContent = 'Nearest in-scale';
+};
 $('tune-toggle').onclick = async () => {
   if (!state.running) {
     try {
@@ -261,6 +355,8 @@ $('speed').oninput = (e) => {
 };
 
 buildKeys();
+buildTargetKeys();
 buildStyles();
+paintTicks();
 renderStats();
 updateTuneStatus();
